@@ -48,7 +48,6 @@ app.post('/secure/*', (request, response, next) => {
 
 		console.log("Attempting to find user for ID: " + userId)
 
-		// Assign a User value or something to request.user, so the secure endpoints can access a user object
 		const url = 'mongodb://localhost:27017'
 		const dbName = 'ditto'
 	
@@ -108,9 +107,10 @@ app.get('/user/:userId', (request, response) => {
 
 	console.log('Information on user with ID ' + userId + ' was requested')
 
-	if (!userId) {
+
+	if (!ObjectId.isValid(userId)) {
 		response.sendStatus(400)
-		return;
+		return
 	}
 
 	const url = 'mongodb://localhost:27017'
@@ -142,7 +142,7 @@ app.get('/user/:userId', (request, response) => {
 
 app.post('/user/create', (request, response) => {
 	console.log("User creation requested")
-	var userCreation = request.body;
+	var userCreation = request.body
 
 	const url = 'mongodb://localhost:27017'
 	const dbName = 'ditto'
@@ -150,8 +150,6 @@ app.post('/user/create', (request, response) => {
 	MongoClient.connect(url, {useNewUrlParser: true}, (err, client) => {
 		const db = client.db(dbName)
 		const collection = db.collection('users')
-
-		// TODO check that username isn't in use. If it is, return HTTP 403
 
 		collection.insert({
 			username: userCreation.username,
@@ -166,19 +164,19 @@ app.post('/user/create', (request, response) => {
 				console.log("User " + userCreation.username + " succesfully inserted into users collection")
 				response.sendStatus(200)
 			}
-		});
+		})
 
 		client.close()
-	});
-});
+	})
+})
 
 app.post('/user/login', (request, response) => {
-	const username = request.body.username;
-	const password = request.body.password;
+	const username = request.body.username
+	const password = request.body.password
 	const url = 'mongodb://localhost:27017'
 	const dbName = 'ditto'
 
-	console.log('Login attempt ' + username + ":" + password);
+	console.log('Login attempt ' + username + ":" + password)
 
 	MongoClient.connect(url, {useNewUrlParser: true}, (err, client) => {
 		const db = client.db(dbName)
@@ -197,7 +195,7 @@ app.post('/user/login', (request, response) => {
 				let subject = result._id
 				response.send({
 					user: result,
-					token: jwt.sign({}, 'i like pandas', {subject: result._id.toString(), issuer: 'api-users'})
+					token: jwt.sign({}, 'i like pandas', {subject: result._id.toString(), issuer: 'api-users'})	// TODO needs to expire
 				})
 			}
 		})
@@ -205,21 +203,26 @@ app.post('/user/login', (request, response) => {
 })
 
 app.post('/secure/user/delete/:userId', (request, response) => {
-	const user = request.user;	// The user wanting to delete a user. TODO permission check on accessLevel
+	const user = request.user	// The user wanting to delete a user. TODO permission check on accessLevel
 	const userId = request.params['userId']	// The ID for the user we should delete
 
-	if (user.accessLevel === 'player') {	// TODO this is pretty crude
+	if (user.accessLevel === 'player') {
 		response.sendStatus(403)
-		return;
+		return
 	}
 
 	if (userId === user._id) {
 		// We can't delete ourselves
-		response.sendStatus(400)
-		return;
+		response.sendStatus(403)
+		return
 	}
 
-	console.log('Delete attempt: ' + userId + ' from ' + user.username);
+	if (!ObjectId.isValid(userId)) {
+		response.sendStatus(400)
+		return
+	}
+
+	console.log('Delete attempt: ' + userId + ' from ' + user.username)
 
 	const url = 'mongodb://localhost:27017'
 	const dbName = 'ditto'
@@ -234,34 +237,38 @@ app.post('/secure/user/delete/:userId', (request, response) => {
 			} else if (!result) {
 				response.sendStatus(404)
 			} else {
-				response.sendStatus(200);
+				response.sendStatus(200)
 			}
 		})
 	})
 })
 
 app.post('/secure/user/accessLevel/:userId', (request, response) => {
-	const user = request.user;	// The user wanting to edit the access level of another user
+	const user = request.user	// The user wanting to edit the access level of another user
 	const userId = request.params['userId']	// The ID for the user we edit the access level of
-	const accessLevel = request.body.accessLevel;
+	const accessLevel = request.body.accessLevel
 
-	if (user.accessLevel === 'player') {	// TODO this is pretty crude
+	if (user.accessLevel === 'player') {
 		response.sendStatus(403)
-		return;
+		return
 	}
 
-	if (userId === user._id.toString()) {
-		// We can't edit our own access level
+	if (!ObjectId.isValid(userId)) {
 		response.sendStatus(400)
-		return;
+		return
+	}
+
+	if (!userId || userId === user._id.toString()) {
+		response.sendStatus(403)
+		return
 	}
 
 	if (!accessLevel) {
-		response.sendStatus(400);
-		return;
+		response.sendStatus(400)
+		return
 	}
 
-	console.log('Access level change attempt for : ' + userId + ' from ' + user.username);
+	console.log('Access level change attempt for : ' + userId + ' from ' + user.username)
 
 	const url = 'mongodb://localhost:27017'
 	const dbName = 'ditto'
@@ -276,29 +283,28 @@ app.post('/secure/user/accessLevel/:userId', (request, response) => {
 			} else if (!result) {
 				response.sendStatus(404)
 			} else {
-				response.sendStatus(200);
+				response.sendStatus(200)
 			}
 		})
 	})
 })
 
 app.post('/secure/user/ban/:userId', (request, response) => {
-	const user = request.user;	// The user wanting to edit the access level of another user
+	const user = request.user	// The user wanting to edit the access level of another user
 	const userId = request.params['userId']	// The ID for the user we edit the access level of
-	const banned = request.body.banned ? true : false;
+	const banned = request.body.banned ? true : false
 
-	if (user.accessLevel === 'player') {	// TODO this is pretty crude
+	if (user.accessLevel === 'player') {
 		response.sendStatus(403)
-		return;
+		return
 	}
 
-	if (userId === user._id) {
-		// We can't ban ourselves
+	if (!ObjectId.isValid(userId) || userId === user._id) {
 		response.sendStatus(400)
-		return;
+		return
 	}
 
-	console.log('Ban attempt for : ' + userId + ' from ' + user.username);
+	console.log('Ban attempt for : ' + userId + ' from ' + user.username)
 
 	const url = 'mongodb://localhost:27017'
 	const dbName = 'ditto'
@@ -313,7 +319,7 @@ app.post('/secure/user/ban/:userId', (request, response) => {
 			} else if (!result) {
 				response.sendStatus(404)
 			} else {
-				response.sendStatus(200);
+				response.sendStatus(200)
 			}
 		})
 	})
