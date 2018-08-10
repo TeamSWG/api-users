@@ -109,7 +109,7 @@ app.get('/user/:userId', (request, response) => {
 	console.log('Information on user with ID ' + userId + ' was requested')
 
 	if (!userId) {
-		// TODO status code?
+		response.sendStatus(400)
 		return;
 	}
 
