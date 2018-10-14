@@ -4,6 +4,10 @@ let MongoClient = require('mongodb').MongoClient
 let ObjectId = require('mongodb').ObjectId
 let jwt = require('jsonwebtoken')
 
+let args = process.argv.slice(2);
+let port = args[0];
+let secret = args[1];
+
 /*
  * Appropriate CORS headers are applied on all responses
  */
@@ -37,7 +41,7 @@ app.post('/secure/*', (request, response, next) => {
 		return
 	}
 
-	jwt.verify(token, "i like pandas", { issuer: 'api-users' }, function(error, decoded) {	// HS256
+	jwt.verify(token, secret, { issuer: 'api-users' }, function(error, decoded) {	// HS256
 		if (error) {
 			console.log(error)
 			response.sendStatus(500)
@@ -195,7 +199,7 @@ app.post('/user/login', (request, response) => {
 				let subject = result._id
 				response.send({
 					user: result,
-					token: jwt.sign({}, 'i like pandas', {subject: result._id.toString(), issuer: 'api-users'})	// TODO needs to expire
+					token: jwt.sign({}, secret, {subject: result._id.toString(), issuer: 'api-users'})	// TODO needs to expire
 				})
 			}
 		})
@@ -325,4 +329,4 @@ app.post('/secure/user/ban/:userId', (request, response) => {
 	})
 })
 
-app.listen(3000, () => console.log('Listening on port 3000'))	// TODO configurable port
+app.listen(port, () => console.log('Listening on port ' + port))
